@@ -3,7 +3,7 @@ name: Create Release
 on:
   push:
     branches:
-      - main
+      - v1
     paths:
       - 'package.json'
       - 'CHANGELOG.md'
