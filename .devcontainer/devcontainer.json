@@ -1,0 +1,37 @@
+{
+  "name": "Dev Container",
+  "dockerComposeFile": "./compose.yml",
+  "service": "devcontainer",
+  "shutdownAction": "none",
+
+  "remoteUser": "root",
+  "workspaceFolder": "/workspace",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "mskelton.npm-outdated",
+        "oxc.oxc-vscode",
+        "vitest.explorer",
+        "eamodio.gitlens",
+        "wix.vscode-import-cost",
+        "gruntfuggly.todo-tree",
+        "aaron-bond.better-comments",
+        "usernamehw.errorlens"
+      ],
+      "settings": {
+        "files.autoSave": "afterDelay",
+        "files.autoSaveDelay": 1000,
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "oxc.oxc-vscode",
+        "oxc.tsConfigPath": "/workspace/tsconfig.json",
+        "oxc.fmt.configPath": "/workspace/.oxfmtrc.json",
+        "oxc.lint.run": "onType",
+        "oxc.requireConfig": true,
+        "oxc.configPath": "/workspace/.oxlintrc.json",
+        "oxc.unusedDisableDirectives": "deny",
+        "oxc.typeAware": true
+      }
+    }
+  }
+}

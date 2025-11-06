@@ -1,0 +1,17 @@
+services:
+  devcontainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ../:/workspace
+    networks:
+      - default
+    command: ["sleep", "infinity"]
+
+networks:
+  default:
+    name: devcontainer
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: devcontainer
