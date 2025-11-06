@@ -1,9 +1,9 @@
 {
     "compilerOptions": {
         // Target & Module
-        "target": "ES2022", // Modern JS for Node.js 20+
+        "target": "ES2023", // Modern JS for Node.js 20+
         "module": "CommonJS", // Required for Node.js and ncc bundler
-        "lib": ["ES2022"], // Standard library for ES2022
+        "lib": ["ES2023"], // Standard library for ES2023
 
         // Output
         "outDir": "./lib", // Compiled JS output directory
