@@ -14,35 +14,29 @@ export async function run(
     gitService?: IGitService,
 ): Promise<void> {
     try {
-        // Get inputs
-        core.getInput('github-token', { required: true }); // Validate token is provided (will be used in later steps)
-        const packageJsonPath = core.getInput('package-json-path', { required: false }) || 'package.json';
-        const changelogPath = core.getInput('changelog-path', { required: false }) || 'CHANGELOG.md';
+        // Get inputs (also validates token)
+        const { packageJsonPath, changelogPath } = getPathsFromInputs();
 
         core.info(`Using package.json path: ${packageJsonPath}`);
         core.info(`Using CHANGELOG.md path: ${changelogPath}`);
 
         // Initialize services
-        const fs = fileService || new FileService();
-        const git = gitService || new GitService();
-        const dependencyComparer = new DependencyComparerService();
-        const changelogFormatter = new ChangelogFormatterService();
-        const changelogService = new ChangelogService(fs);
+        const {
+            fs,
+            git,
+            dependencyComparer,
+            changelogFormatter,
+            changelogService,
+        } = initServices(fileService, gitService);
 
         // Validate inputs
-        if (!fs.fileExists(packageJsonPath)) {
-            throw new Error(`package.json not found at: ${packageJsonPath}`);
-        }
-
-        if (!fs.fileExists(changelogPath)) {
-            throw new Error(`CHANGELOG.md not found at: ${changelogPath}`);
-        }
+        validateFiles(fs, packageJsonPath, changelogPath);
 
         core.info('Files validated successfully');
 
         // Get package.json from last tag
         core.info('Fetching package.json from last git tag...');
-        const oldPackageJson = await git.getPackageJsonFromLastTag(packageJsonPath);
+        const oldPackageJson = await fetchOldPackageJson(git, packageJsonPath);
 
         if (!oldPackageJson) {
             core.info('No previous version found to compare against');
@@ -53,8 +47,7 @@ export async function run(
 
         // Read current package.json
         core.info('Reading current package.json...');
-        const currentPackageJsonContent = fs.readFile(packageJsonPath);
-        const currentPackageJson: PackageJson = JSON.parse(currentPackageJsonContent);
+        const currentPackageJson = readCurrentPackageJson(fs, packageJsonPath);
 
         // Compare dependencies
         core.info('Comparing dependencies...');
@@ -70,13 +63,9 @@ export async function run(
 
         core.info('Dependency changes detected');
 
-        // Format changes
+        // Format and update CHANGELOG
         core.info('Formatting changes for CHANGELOG...');
-        const formattedChanges = changelogFormatter.format(changes);
-
-        // Update CHANGELOG
-        core.info('Updating CHANGELOG.md...');
-        changelogService.updateChangelog(changelogPath, formattedChanges);
+        formatAndUpdateChangelog(changelogService, changelogFormatter, changelogPath, changes);
 
         // Set outputs
         core.setOutput('changes-detected', true);
@@ -92,7 +81,54 @@ export async function run(
     }
 }
 
-// Run the action if this is the main module
-if (require.main === module) {
-    run();
+export function getPathsFromInputs(): { packageJsonPath: string; changelogPath: string } {
+    core.getInput('github-token', { required: true }); // Validate token is provided (will be used in later steps)
+    const packageJsonPath = core.getInput('package-json-path', { required: false }) || 'package.json';
+    const changelogPath = core.getInput('changelog-path', { required: false }) || 'CHANGELOG.md';
+    return { packageJsonPath, changelogPath };
 }
+
+export function initServices(
+    fileService?: IFileService,
+    gitService?: IGitService,
+) {
+    const fs = fileService || new FileService();
+    const git = gitService || new GitService();
+    const dependencyComparer = new DependencyComparerService();
+    const changelogFormatter = new ChangelogFormatterService();
+    const changelogService = new ChangelogService(fs);
+    return { fs, git, dependencyComparer, changelogFormatter, changelogService };
+}
+
+export function validateFiles(fs: IFileService, packageJsonPath: string, changelogPath: string): void {
+    if (!fs.fileExists(packageJsonPath)) {
+        throw new Error(`package.json not found at: ${packageJsonPath}`);
+    }
+
+    if (!fs.fileExists(changelogPath)) {
+        throw new Error(`CHANGELOG.md not found at: ${changelogPath}`);
+    }
+}
+
+export async function fetchOldPackageJson(git: IGitService, packageJsonPath: string) {
+    return git.getPackageJsonFromLastTag(packageJsonPath);
+}
+
+export function readCurrentPackageJson(fs: IFileService, packageJsonPath: string): PackageJson {
+    const currentPackageJsonContent = fs.readFile(packageJsonPath);
+    return JSON.parse(currentPackageJsonContent);
+}
+
+import { PackageChanges } from './services/dependency-comparer.service';
+
+export function formatAndUpdateChangelog(
+    changelogService: ChangelogService,
+    changelogFormatter: ChangelogFormatterService,
+    changelogPath: string,
+    changes: PackageChanges,
+) {
+    const formattedChanges = changelogFormatter.format(changes);
+    changelogService.updateChangelog(changelogPath, formattedChanges);
+}
+
+run();

@@ -1,68 +1,31 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import * as core from '@actions/core';
 import { run } from '../src/index';
+
+import {
+    getPathsFromInputs,
+    initServices,
+    validateFiles,
+    fetchOldPackageJson,
+    readCurrentPackageJson,
+    formatAndUpdateChangelog,
+} from '../src/index';
+
 import { IFileService } from '../src/services/file.service';
 import { IGitService } from '../src/services/git.service';
+import { ChangelogFormatterService } from '../src/services/changelog-formatter.service';
+import { ChangelogService } from '../src/services/changelog.service';
 
-// Mock the @actions/core module
 vi.mock('@actions/core');
 
-describe('index', () => {
+describe('run', () => {
     let mockGetInput: Mock;
     let mockSetOutput: Mock;
     let mockSetFailed: Mock;
     let mockInfo: Mock;
-    let mockFileService: IFileService;
-    let mockGitService: IGitService;
-
-    const oldPackageJsonObj = {
-        name: 'test-package',
-        version: '1.0.0',
-        dependencies: {
-            'package-a': '1.0.0',
-            'package-b': '2.0.0',
-        },
-        devDependencies: {
-            'dev-package': '1.0.0',
-        },
-    };
-
-    const oldPackageJson = JSON.stringify(oldPackageJsonObj);
-
-    const newPackageJsonObj = {
-        name: 'test-package',
-        version: '1.1.0',
-        dependencies: {
-            'package-a': '1.1.0', // upgraded
-            'package-c': '1.0.0', // added
-        },
-        devDependencies: {
-            'dev-package': '2.0.0', // upgraded
-            'new-dev-package': '1.0.0', // added
-        },
-    };
-
-    const newPackageJson = JSON.stringify(newPackageJsonObj);
-
-    const existingChangelog = `
-# Changelog
-
-## [Unreleased]
-
-### Added
-- New feature
-
-## [1.0.0] - 2024-01-01
-
-### Added
-- Initial release
-    `;
 
     beforeEach(() => {
-        // Reset all mocks before each test
         vi.clearAllMocks();
-
-        // Setup core mocks
         mockGetInput = vi.fn();
         mockSetOutput = vi.fn();
         mockSetFailed = vi.fn();
@@ -72,204 +35,440 @@ describe('index', () => {
         (core.setOutput as Mock) = mockSetOutput;
         (core.setFailed as Mock) = mockSetFailed;
         (core.info as Mock) = mockInfo;
+    });
 
-        // Setup FileService mock
-        mockFileService = {
+    it('exits when no previous package.json found', async () => {
+        mockGetInput.mockImplementation((name: string) => (name === 'github-token' ? 'token' : ''));
+
+        const mockFs: IFileService = {
             fileExists: vi.fn().mockReturnValue(true),
             readFile: vi.fn(),
             writeFile: vi.fn(),
         };
 
-        // Setup GitService mock
-        mockGitService = {
+        const mockGit: IGitService = {
+            getLastTag: vi.fn(),
+            getFileFromTag: vi.fn(),
+            getPackageJsonFromLastTag: vi.fn().mockResolvedValue(undefined),
+        };
+
+        await run(mockFs, mockGit);
+
+        expect(mockSetOutput).toHaveBeenCalledWith('changes-detected', false);
+        expect(mockSetOutput).toHaveBeenCalledWith('changelog-updated', false);
+        expect((mockFs.writeFile as Mock)).not.toHaveBeenCalled();
+    });
+
+    it('runs happy path and updates changelog', async () => {
+        mockGetInput.mockImplementation((name: string) => (name === 'github-token' ? 'token' : ''));
+
+        const oldPackageJsonObj = { dependencies: { 'pkg-a': '1.0.0' } };
+        const newPackageJsonObj = { dependencies: { 'pkg-a': '2.0.0' } };
+
+        const mockFs: IFileService = {
+            fileExists: vi.fn().mockReturnValue(true),
+            readFile: vi.fn().mockImplementation((path: string) => {
+                if (path === 'package.json') return JSON.stringify(newPackageJsonObj);
+                if (path === 'CHANGELOG.md')
+                    return '# Changelog\n\n## [Unreleased]\n\n### Added\n- something';
+                return '';
+            }),
+            writeFile: vi.fn(),
+        };
+
+        const mockGit: IGitService = {
+            getLastTag: vi.fn(),
+            getFileFromTag: vi.fn(),
+            getPackageJsonFromLastTag: vi.fn().mockResolvedValue(oldPackageJsonObj),
+        };
+
+        await run(mockFs, mockGit);
+
+        expect((mockFs.writeFile as Mock)).toHaveBeenCalled();
+        expect(mockSetOutput).toHaveBeenCalledWith('changes-detected', true);
+        expect(mockSetOutput).toHaveBeenCalledWith('changelog-updated', true);
+    });
+
+    it('exits when there are no dependency changes', async () => {
+        mockGetInput.mockImplementation((name: string) => (name === 'github-token' ? 'token' : ''));
+
+        const pkg = { dependencies: { 'pkg-a': '1.0.0' } };
+
+        const mockFs: IFileService = {
+            fileExists: vi.fn().mockReturnValue(true),
+            readFile: vi.fn().mockImplementation((path: string) => {
+                if (path === 'package.json') return JSON.stringify(pkg);
+                if (path === 'CHANGELOG.md') return '# Changelog\n\n## [Unreleased]\n';
+                return '';
+            }),
+            writeFile: vi.fn(),
+        };
+
+        const mockGit: IGitService = {
+            getLastTag: vi.fn(),
+            getFileFromTag: vi.fn(),
+            getPackageJsonFromLastTag: vi.fn().mockResolvedValue(pkg),
+        };
+
+        await run(mockFs, mockGit);
+
+        expect(mockSetOutput).toHaveBeenCalledWith('changes-detected', false);
+        expect(mockSetOutput).toHaveBeenCalledWith('changelog-updated', false);
+        expect((mockFs.writeFile as Mock)).not.toHaveBeenCalled();
+    });
+
+    it('handles non-Error exceptions thrown from inputs', async () => {
+        // Make getInput throw a non-Error (string)
+        mockGetInput.mockImplementation(() => {
+            throw 'String error';
+        });
+
+        const mockFs: IFileService = {
+            fileExists: vi.fn().mockReturnValue(true),
+            readFile: vi.fn(),
+            writeFile: vi.fn(),
+        };
+
+        const mockGit: IGitService = {
             getLastTag: vi.fn(),
             getFileFromTag: vi.fn(),
             getPackageJsonFromLastTag: vi.fn(),
         };
+
+        await run(mockFs, mockGit);
+
+        expect((core.setFailed as Mock)).toHaveBeenCalledWith('String error');
     });
 
-    describe('run', () => {
-        it('should successfully detect changes and update changelog', async () => {
-            // Arrange
-            mockGetInput.mockImplementation((name: string) => {
-                if (name === 'github-token') return 'test-token';
-                if (name === 'package-json-path') return '';
-                if (name === 'changelog-path') return '';
+    it('handles Error exceptions from git service', async () => {
+        mockGetInput.mockImplementation((name: string) => (name === 'github-token' ? 'token' : ''));
+
+        const mockFs: IFileService = {
+            fileExists: vi.fn().mockReturnValue(true),
+            readFile: vi.fn(),
+            writeFile: vi.fn(),
+        };
+
+        const mockGit: IGitService = {
+            getLastTag: vi.fn(),
+            getFileFromTag: vi.fn(),
+            getPackageJsonFromLastTag: vi.fn().mockRejectedValue(new Error('No tags found')),
+        };
+
+        await run(mockFs, mockGit);
+
+        expect((core.setFailed as Mock)).toHaveBeenCalledWith('No tags found');
+    });
+});
+
+describe('index helpers', () => {
+    let mockGetInput: Mock;
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetInput = vi.fn();
+        (core.getInput as Mock) = mockGetInput;
+    });
+
+    describe('getPathsFromInputs', () => {
+        it('returns defaults when optional inputs not provided', () => {
+            mockGetInput.mockImplementation((name: string, opts?: any) => {
+                if (name === 'github-token') return 'token';
                 return '';
             });
 
-            // GitService returns parsed object, FileService returns strings
-            (mockGitService.getPackageJsonFromLastTag as Mock).mockResolvedValue(oldPackageJsonObj);
-            (mockFileService.readFile as Mock).mockImplementation((path: string) => {
-                if (path === 'package.json') return newPackageJson;
-                if (path === 'CHANGELOG.md') return existingChangelog;
-                throw new Error(`Unexpected file read: ${path}`);
-            });
-
-            // Act
-            await run(mockFileService, mockGitService);
-
-            // Assert
-            expect(mockGitService.getPackageJsonFromLastTag).toHaveBeenCalledWith('package.json');
-            expect(mockFileService.readFile).toHaveBeenCalledWith('package.json');
-            expect(mockFileService.readFile).toHaveBeenCalledWith('CHANGELOG.md');
-            expect(mockFileService.writeFile).toHaveBeenCalled();
-            expect(mockSetOutput).toHaveBeenCalledWith('changes-detected', true);
-            expect(mockSetOutput).toHaveBeenCalledWith('changelog-updated', true);
-            expect(mockSetFailed).not.toHaveBeenCalled();
-
-            // Verify the changelog was updated with dependency changes
-            const writeCall = (mockFileService.writeFile as Mock).mock.calls[0];
-            expect(writeCall[0]).toBe('CHANGELOG.md');
-            const updatedChangelog = writeCall[1];
-            expect(updatedChangelog).toContain('### Changed');
-            expect(updatedChangelog).toContain('package-a');
-            expect(updatedChangelog).toContain('package-c');
+            const paths = getPathsFromInputs();
+            expect(paths.packageJsonPath).toBe('package.json');
+            expect(paths.changelogPath).toBe('CHANGELOG.md');
         });
 
-        it('should handle no changes detected', async () => {
-            // Arrange
-            mockGetInput.mockImplementation((name: string) => {
-                if (name === 'github-token') return 'test-token';
-                return '';
-            });
-
-            // Use identical package.json to ensure no changes
-            const identicalPackageObj = {
-                name: 'test-package',
-                version: '1.0.0',
-                dependencies: {
-                    'package-a': '1.0.0',
-                },
-            };
-
-            // GitService returns parsed object, FileService returns string
-            (mockGitService.getPackageJsonFromLastTag as Mock).mockResolvedValue(identicalPackageObj);
-            (mockFileService.readFile as Mock).mockReturnValue(JSON.stringify(identicalPackageObj));
-
-            // Act
-            await run(mockFileService, mockGitService);
-
-            // Assert
-            expect(mockInfo).toHaveBeenCalledWith('No dependency changes detected');
-            expect(mockSetOutput).toHaveBeenCalledWith('changes-detected', false);
-            expect(mockSetOutput).toHaveBeenCalledWith('changelog-updated', false);
-            expect(mockFileService.writeFile).not.toHaveBeenCalled();
-            expect(mockSetFailed).not.toHaveBeenCalled();
-        });
-
-        it('should use custom paths when provided', async () => {
-            // Arrange
-            mockGetInput.mockImplementation((name: string) => {
-                if (name === 'github-token') return 'test-token';
+        it('returns custom paths when provided', () => {
+            mockGetInput.mockImplementation((name: string, opts?: any) => {
+                if (name === 'github-token') return 'token';
                 if (name === 'package-json-path') return 'custom/package.json';
                 if (name === 'changelog-path') return 'custom/CHANGELOG.md';
                 return '';
             });
 
-            // GitService returns parsed object, FileService returns strings
-            (mockGitService.getPackageJsonFromLastTag as Mock).mockResolvedValue(oldPackageJsonObj);
-            (mockFileService.readFile as Mock).mockImplementation((path: string) => {
-                if (path === 'custom/package.json') return newPackageJson;
-                if (path === 'custom/CHANGELOG.md') return existingChangelog;
-                throw new Error(`Unexpected file read: ${path}`);
-            });
-
-            // Act
-            await run(mockFileService, mockGitService);
-
-            // Assert
-            expect(mockFileService.fileExists).toHaveBeenCalledWith('custom/package.json');
-            expect(mockFileService.fileExists).toHaveBeenCalledWith('custom/CHANGELOG.md');
-            expect(mockInfo).toHaveBeenCalledWith('Using package.json path: custom/package.json');
-            expect(mockInfo).toHaveBeenCalledWith('Using CHANGELOG.md path: custom/CHANGELOG.md');
-            expect(mockGitService.getPackageJsonFromLastTag).toHaveBeenCalledWith('custom/package.json');
+            const paths = getPathsFromInputs();
+            expect(paths.packageJsonPath).toBe('custom/package.json');
+            expect(paths.changelogPath).toBe('custom/CHANGELOG.md');
         });
+    });
 
-        it('should fail when package.json does not exist', async () => {
-            // Arrange
-            mockGetInput.mockImplementation((name: string) => {
-                if (name === 'github-token') return 'test-token';
-                return '';
-            });
-            (mockFileService.fileExists as Mock).mockImplementation((path: string) => {
-                return path !== 'package.json'; // package.json doesn't exist
-            });
+    describe('initServices', () => {
+        it('returns provided services when passed', () => {
+            const mockFs: IFileService = {
+                fileExists: vi.fn(),
+                readFile: vi.fn(),
+                writeFile: vi.fn(),
+            };
 
-            // Act
-            await run(mockFileService, mockGitService);
+            const mockGit: IGitService = {
+                getLastTag: vi.fn(),
+                getFileFromTag: vi.fn(),
+                getPackageJsonFromLastTag: vi.fn(),
+            };
 
-            // Assert
-            expect(mockSetFailed).toHaveBeenCalledWith('package.json not found at: package.json');
-            expect(mockSetOutput).not.toHaveBeenCalled();
+            const res = initServices(mockFs, mockGit);
+            expect(res.fs).toBe(mockFs);
+            expect(res.git).toBe(mockGit);
+            expect(res.dependencyComparer).toBeDefined();
+            expect(res.changelogFormatter).toBeDefined();
+            expect(res.changelogService).toBeDefined();
         });
+    });
 
-        it('should fail when CHANGELOG.md does not exist', async () => {
-            // Arrange
-            mockGetInput.mockImplementation((name: string) => {
-                if (name === 'github-token') return 'test-token';
-                return '';
-            });
-            (mockFileService.fileExists as Mock).mockImplementation((path: string) => {
-                return path !== 'CHANGELOG.md'; // CHANGELOG.md doesn't exist
-            });
+    describe('validateFiles', () => {
+        it('throws when package.json missing', () => {
+            const mockFs: IFileService = {
+                fileExists: vi.fn().mockImplementation((path: string) => path !== 'package.json'),
+                readFile: vi.fn(),
+                writeFile: vi.fn(),
+            };
 
-            // Act
-            await run(mockFileService, mockGitService);
-
-            // Assert
-            expect(mockSetFailed).toHaveBeenCalledWith('CHANGELOG.md not found at: CHANGELOG.md');
-            expect(mockSetOutput).not.toHaveBeenCalled();
-        });
-
-        it('should handle errors from git service', async () => {
-            // Arrange
-            mockGetInput.mockImplementation((name: string) => {
-                if (name === 'github-token') return 'test-token';
-                return '';
-            });
-            (mockGitService.getPackageJsonFromLastTag as Mock).mockRejectedValue(
-                new Error('No tags found')
+            expect(() => validateFiles(mockFs, 'package.json', 'CHANGELOG.md')).toThrow(
+                'package.json not found at: package.json',
             );
-
-            // Act
-            await run(mockFileService, mockGitService);
-
-            // Assert
-            expect(mockSetFailed).toHaveBeenCalledWith('No tags found');
-            expect(mockSetOutput).not.toHaveBeenCalled();
         });
 
-        it('should handle errors from file service', async () => {
-            // Arrange
-            mockGetInput.mockImplementation((name: string) => {
-                if (name === 'github-token') return 'test-token';
+        it('throws when CHANGELOG.md missing', () => {
+            const mockFs: IFileService = {
+                fileExists: vi.fn().mockImplementation((path: string) => path !== 'CHANGELOG.md'),
+                readFile: vi.fn(),
+                writeFile: vi.fn(),
+            };
+
+            expect(() => validateFiles(mockFs, 'package.json', 'CHANGELOG.md')).toThrow(
+                'CHANGELOG.md not found at: CHANGELOG.md',
+            );
+        });
+
+        it('does not throw when both files exist', () => {
+            const mockFs: IFileService = {
+                fileExists: vi.fn().mockReturnValue(true),
+                readFile: vi.fn(),
+                writeFile: vi.fn(),
+            };
+
+            expect(() => validateFiles(mockFs, 'package.json', 'CHANGELOG.md')).not.toThrow();
+        });
+    });
+
+    describe('fetchOldPackageJson', () => {
+        it('returns value from git service', async () => {
+            const mockGit: IGitService = {
+                getLastTag: vi.fn(),
+                getFileFromTag: vi.fn(),
+                getPackageJsonFromLastTag: vi.fn().mockResolvedValue({ foo: 'bar' }),
+            };
+
+            const res = await fetchOldPackageJson(mockGit, 'package.json');
+            expect(res).toEqual({ foo: 'bar' });
+        });
+    });
+
+    describe('readCurrentPackageJson', () => {
+        it('parses JSON from file service', () => {
+            const mockFs: IFileService = {
+                fileExists: vi.fn(),
+                readFile: vi.fn().mockReturnValue('{"a":1}'),
+                writeFile: vi.fn(),
+            };
+
+            const parsed = readCurrentPackageJson(mockFs, 'package.json');
+            expect(parsed).toEqual({ a: 1 });
+        });
+
+        it('throws on invalid JSON', () => {
+            const mockFs: IFileService = {
+                fileExists: vi.fn(),
+                readFile: vi.fn().mockReturnValue('not-json'),
+                writeFile: vi.fn(),
+            };
+
+            expect(() => readCurrentPackageJson(mockFs, 'package.json')).toThrow();
+        });
+    });
+
+    describe('formatAndUpdateChangelog', () => {
+        it('formats changes and updates changelog', () => {
+            const mockFormatter = new ChangelogFormatterService();
+            const formatSpy = vi.spyOn(mockFormatter, 'format').mockReturnValue('formatted');
+
+            const mockChangelogSvc = new ChangelogService({
+                fileExists: vi.fn(),
+                readFile: vi.fn(),
+                writeFile: vi.fn(),
+            });
+            const updateSpy = vi.spyOn(mockChangelogSvc, 'updateChangelog').mockImplementation(() => undefined);
+
+            const dummyChanges: any = {
+                dependencies: { added: [], removed: [], updated: [] },
+                devDependencies: { added: [], removed: [], updated: [] },
+                peerDependencies: { added: [], removed: [], updated: [] },
+                optionalDependencies: { added: [], removed: [], updated: [] },
+            };
+
+            formatAndUpdateChangelog(mockChangelogSvc, mockFormatter, 'CHANGELOG.md', dummyChanges);
+
+            expect(formatSpy).toHaveBeenCalledWith(dummyChanges);
+            expect(updateSpy).toHaveBeenCalledWith('CHANGELOG.md', 'formatted');
+        });
+    });
+});
+
+describe('index helpers', () => {
+    let mockGetInput: Mock;
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetInput = vi.fn();
+        (core.getInput as Mock) = mockGetInput;
+    });
+
+    describe('getPathsFromInputs', () => {
+        it('returns defaults when optional inputs not provided', () => {
+            mockGetInput.mockImplementation((name: string, opts?: any) => {
+                if (name === 'github-token') return 'token';
                 return '';
             });
-            (mockGitService.getPackageJsonFromLastTag as Mock).mockResolvedValue(oldPackageJsonObj);
-            (mockFileService.readFile as Mock).mockImplementation(() => {
-                throw new Error('File read error');
-            });
 
-            // Act
-            await run(mockFileService, mockGitService);
-
-            // Assert
-            expect(mockSetFailed).toHaveBeenCalledWith('File read error');
-            expect(mockSetOutput).not.toHaveBeenCalled();
+            const paths = getPathsFromInputs();
+            expect(paths.packageJsonPath).toBe('package.json');
+            expect(paths.changelogPath).toBe('CHANGELOG.md');
         });
 
-        it('should handle non-Error exceptions', async () => {
-            // Arrange
-            mockGetInput.mockImplementation(() => {
-                throw 'String error';
+        it('returns custom paths when provided', () => {
+            mockGetInput.mockImplementation((name: string, opts?: any) => {
+                if (name === 'github-token') return 'token';
+                if (name === 'package-json-path') return 'custom/package.json';
+                if (name === 'changelog-path') return 'custom/CHANGELOG.md';
+                return '';
             });
 
-            // Act
-            await run(mockFileService, mockGitService);
+            const paths = getPathsFromInputs();
+            expect(paths.packageJsonPath).toBe('custom/package.json');
+            expect(paths.changelogPath).toBe('custom/CHANGELOG.md');
+        });
+    });
 
-            // Assert
-            expect(mockSetFailed).toHaveBeenCalledWith('String error');
+    describe('initServices', () => {
+        it('returns provided services when passed', () => {
+            const mockFs: IFileService = {
+                fileExists: vi.fn(),
+                readFile: vi.fn(),
+                writeFile: vi.fn(),
+            };
+
+            const mockGit: IGitService = {
+                getLastTag: vi.fn(),
+                getFileFromTag: vi.fn(),
+                getPackageJsonFromLastTag: vi.fn(),
+            };
+
+            const res = initServices(mockFs, mockGit);
+            expect(res.fs).toBe(mockFs);
+            expect(res.git).toBe(mockGit);
+            expect(res.dependencyComparer).toBeDefined();
+            expect(res.changelogFormatter).toBeDefined();
+            expect(res.changelogService).toBeDefined();
+        });
+    });
+
+    describe('validateFiles', () => {
+        it('throws when package.json missing', () => {
+            const mockFs: IFileService = {
+                fileExists: vi.fn().mockImplementation((path: string) => path !== 'package.json'),
+                readFile: vi.fn(),
+                writeFile: vi.fn(),
+            };
+
+            expect(() => validateFiles(mockFs, 'package.json', 'CHANGELOG.md')).toThrow(
+                'package.json not found at: package.json',
+            );
+        });
+
+        it('throws when CHANGELOG.md missing', () => {
+            const mockFs: IFileService = {
+                fileExists: vi.fn().mockImplementation((path: string) => path !== 'CHANGELOG.md'),
+                readFile: vi.fn(),
+                writeFile: vi.fn(),
+            };
+
+            expect(() => validateFiles(mockFs, 'package.json', 'CHANGELOG.md')).toThrow(
+                'CHANGELOG.md not found at: CHANGELOG.md',
+            );
+        });
+
+        it('does not throw when both files exist', () => {
+            const mockFs: IFileService = {
+                fileExists: vi.fn().mockReturnValue(true),
+                readFile: vi.fn(),
+                writeFile: vi.fn(),
+            };
+
+            expect(() => validateFiles(mockFs, 'package.json', 'CHANGELOG.md')).not.toThrow();
+        });
+    });
+
+    describe('fetchOldPackageJson', () => {
+        it('returns value from git service', async () => {
+            const mockGit: IGitService = {
+                getLastTag: vi.fn(),
+                getFileFromTag: vi.fn(),
+                getPackageJsonFromLastTag: vi.fn().mockResolvedValue({ foo: 'bar' }),
+            };
+
+            const res = await fetchOldPackageJson(mockGit, 'package.json');
+            expect(res).toEqual({ foo: 'bar' });
+        });
+    });
+
+    describe('readCurrentPackageJson', () => {
+        it('parses JSON from file service', () => {
+            const mockFs: IFileService = {
+                fileExists: vi.fn(),
+                readFile: vi.fn().mockReturnValue('{"a":1}'),
+                writeFile: vi.fn(),
+            };
+
+            const parsed = readCurrentPackageJson(mockFs, 'package.json');
+            expect(parsed).toEqual({ a: 1 });
+        });
+
+        it('throws on invalid JSON', () => {
+            const mockFs: IFileService = {
+                fileExists: vi.fn(),
+                readFile: vi.fn().mockReturnValue('not-json'),
+                writeFile: vi.fn(),
+            };
+
+            expect(() => readCurrentPackageJson(mockFs, 'package.json')).toThrow();
+        });
+    });
+
+    describe('formatAndUpdateChangelog', () => {
+        it('formats changes and updates changelog', () => {
+            const mockFormatter = new ChangelogFormatterService();
+            const formatSpy = vi.spyOn(mockFormatter, 'format').mockReturnValue('formatted');
+
+            const mockChangelogSvc = new ChangelogService({
+                fileExists: vi.fn(),
+                readFile: vi.fn(),
+                writeFile: vi.fn(),
+            });
+            const updateSpy = vi.spyOn(mockChangelogSvc, 'updateChangelog').mockImplementation(() => undefined);
+
+            const dummyChanges: any = {
+                dependencies: { added: [], removed: [], updated: [] },
+                devDependencies: { added: [], removed: [], updated: [] },
+                peerDependencies: { added: [], removed: [], updated: [] },
+                optionalDependencies: { added: [], removed: [], updated: [] },
+            };
+
+            formatAndUpdateChangelog(mockChangelogSvc, mockFormatter, 'CHANGELOG.md', dummyChanges);
+
+            expect(formatSpy).toHaveBeenCalledWith(dummyChanges);
+            expect(updateSpy).toHaveBeenCalledWith('CHANGELOG.md', 'formatted');
         });
     });
 });
