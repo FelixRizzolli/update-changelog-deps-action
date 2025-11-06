@@ -60,6 +60,12 @@ require('./sourcemap-register.js');
                     })();
                 Object.defineProperty(exports, '__esModule', { value: true });
                 exports.run = run;
+                exports.getPathsFromInputs = getPathsFromInputs;
+                exports.initServices = initServices;
+                exports.validateFiles = validateFiles;
+                exports.fetchOldPackageJson = fetchOldPackageJson;
+                exports.readCurrentPackageJson = readCurrentPackageJson;
+                exports.formatAndUpdateChangelog = formatAndUpdateChangelog;
                 const core = __importStar(__nccwpck_require__(6966));
                 const file_service_1 = __nccwpck_require__(7913);
                 const git_service_1 = __nccwpck_require__(4913);
@@ -71,30 +77,21 @@ require('./sourcemap-register.js');
                  */
                 async function run(fileService, gitService) {
                     try {
-                        // Get inputs
-                        core.getInput('github-token', { required: true }); // Validate token is provided (will be used in later steps)
-                        const packageJsonPath =
-                            core.getInput('package-json-path', { required: false }) || 'package.json';
-                        const changelogPath = core.getInput('changelog-path', { required: false }) || 'CHANGELOG.md';
+                        // Get inputs (also validates token)
+                        const { packageJsonPath, changelogPath } = getPathsFromInputs();
                         core.info(`Using package.json path: ${packageJsonPath}`);
                         core.info(`Using CHANGELOG.md path: ${changelogPath}`);
                         // Initialize services
-                        const fs = fileService || new file_service_1.FileService();
-                        const git = gitService || new git_service_1.GitService();
-                        const dependencyComparer = new dependency_comparer_service_1.DependencyComparerService();
-                        const changelogFormatter = new changelog_formatter_service_1.ChangelogFormatterService();
-                        const changelogService = new changelog_service_1.ChangelogService(fs);
+                        const { fs, git, dependencyComparer, changelogFormatter, changelogService } = initServices(
+                            fileService,
+                            gitService,
+                        );
                         // Validate inputs
-                        if (!fs.fileExists(packageJsonPath)) {
-                            throw new Error(`package.json not found at: ${packageJsonPath}`);
-                        }
-                        if (!fs.fileExists(changelogPath)) {
-                            throw new Error(`CHANGELOG.md not found at: ${changelogPath}`);
-                        }
+                        validateFiles(fs, packageJsonPath, changelogPath);
                         core.info('Files validated successfully');
                         // Get package.json from last tag
                         core.info('Fetching package.json from last git tag...');
-                        const oldPackageJson = await git.getPackageJsonFromLastTag(packageJsonPath);
+                        const oldPackageJson = await fetchOldPackageJson(git, packageJsonPath);
                         if (!oldPackageJson) {
                             core.info('No previous version found to compare against');
                             core.setOutput('changes-detected', false);
@@ -103,8 +100,7 @@ require('./sourcemap-register.js');
                         }
                         // Read current package.json
                         core.info('Reading current package.json...');
-                        const currentPackageJsonContent = fs.readFile(packageJsonPath);
-                        const currentPackageJson = JSON.parse(currentPackageJsonContent);
+                        const currentPackageJson = readCurrentPackageJson(fs, packageJsonPath);
                         // Compare dependencies
                         core.info('Comparing dependencies...');
                         const changes = dependencyComparer.compare(oldPackageJson, currentPackageJson);
@@ -116,12 +112,9 @@ require('./sourcemap-register.js');
                             return;
                         }
                         core.info('Dependency changes detected');
-                        // Format changes
+                        // Format and update CHANGELOG
                         core.info('Formatting changes for CHANGELOG...');
-                        const formattedChanges = changelogFormatter.format(changes);
-                        // Update CHANGELOG
-                        core.info('Updating CHANGELOG.md...');
-                        changelogService.updateChangelog(changelogPath, formattedChanges);
+                        formatAndUpdateChangelog(changelogService, changelogFormatter, changelogPath, changes);
                         // Set outputs
                         core.setOutput('changes-detected', true);
                         core.setOutput('changelog-updated', true);
@@ -134,10 +127,40 @@ require('./sourcemap-register.js');
                         }
                     }
                 }
-                // Run the action if this is the main module
-                if (require.main === require.cache[eval('__filename')]) {
-                    run();
+                function getPathsFromInputs() {
+                    core.getInput('github-token', { required: true }); // Validate token is provided (will be used in later steps)
+                    const packageJsonPath = core.getInput('package-json-path', { required: false }) || 'package.json';
+                    const changelogPath = core.getInput('changelog-path', { required: false }) || 'CHANGELOG.md';
+                    return { packageJsonPath, changelogPath };
                 }
+                function initServices(fileService, gitService) {
+                    const fs = fileService || new file_service_1.FileService();
+                    const git = gitService || new git_service_1.GitService();
+                    const dependencyComparer = new dependency_comparer_service_1.DependencyComparerService();
+                    const changelogFormatter = new changelog_formatter_service_1.ChangelogFormatterService();
+                    const changelogService = new changelog_service_1.ChangelogService(fs);
+                    return { fs, git, dependencyComparer, changelogFormatter, changelogService };
+                }
+                function validateFiles(fs, packageJsonPath, changelogPath) {
+                    if (!fs.fileExists(packageJsonPath)) {
+                        throw new Error(`package.json not found at: ${packageJsonPath}`);
+                    }
+                    if (!fs.fileExists(changelogPath)) {
+                        throw new Error(`CHANGELOG.md not found at: ${changelogPath}`);
+                    }
+                }
+                async function fetchOldPackageJson(git, packageJsonPath) {
+                    return git.getPackageJsonFromLastTag(packageJsonPath);
+                }
+                function readCurrentPackageJson(fs, packageJsonPath) {
+                    const currentPackageJsonContent = fs.readFile(packageJsonPath);
+                    return JSON.parse(currentPackageJsonContent);
+                }
+                function formatAndUpdateChangelog(changelogService, changelogFormatter, changelogPath, changes) {
+                    const formattedChanges = changelogFormatter.format(changes);
+                    changelogService.updateChangelog(changelogPath, formattedChanges);
+                }
+                run();
 
                 /***/
             },
