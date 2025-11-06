@@ -19,6 +19,10 @@ inputs:
         default: 'CHANGELOG.md'
 
 outputs:
+    changes-detected:
+        description: 'Whether any dependency changes were detected'
+    changelog-updated:
+        description: 'Whether the CHANGELOG.md was successfully updated'
 
 runs:
     using: 'node24'
