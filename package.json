@@ -1,6 +1,6 @@
 {
     "name": "update-changelog-deps-action",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "GitHub Action to update CHANGELOG.md with changed dependencies.",
     "author": {
         "name": "Felix Rizzolli",
