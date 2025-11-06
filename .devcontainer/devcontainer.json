@@ -25,6 +25,7 @@
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "oxc.oxc-vscode",
         "oxc.tsConfigPath": "/workspace/tsconfig.json",
+        "oxc.enable": true,
         "oxc.fmt.configPath": "/workspace/.oxfmtrc.json",
         "oxc.lint.run": "onType",
         "oxc.requireConfig": true,
