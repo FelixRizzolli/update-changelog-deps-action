@@ -49,6 +49,7 @@ web_modules/
 
 # Optional npm cache directory
 .npm
+node-compile-cache
 
 # Optional eslint cache
 .eslintcache
@@ -133,6 +134,10 @@ dist
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# pnpm
+.pnpm-debug.log
+.pnpm-store
 
 # Vite logs files
 vite.config.js.timestamp-*
