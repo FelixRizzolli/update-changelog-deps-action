@@ -1,0 +1,32 @@
+name: Create Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'package.json'
+      - 'CHANGELOG.md'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Run auto release
+        uses: FelixRizzolli/auto-release-action@v1
+        with:
+          release_token: ${{ secrets.GITHUB_TOKEN }}
+          package_json_path: 'package.json'
+          changelog_path: 'CHANGELOG.md'
+          tag_prefix: 'v'
+          create_tag: 'true'
+          create_release: 'true'
