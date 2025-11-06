@@ -40,9 +40,7 @@ export class ChangelogService implements IChangelogService {
             }
         }
 
-        core.info(
-            `Found version section at line ${versionLineIndex + 1}: ${lines[versionLineIndex]}`,
-        );
+        core.info(`Found version section at line ${versionLineIndex + 1}: ${lines[versionLineIndex]}`);
 
         // Check if ### Changed section exists
         const changedSectionIndex = this.findChangedSection(lines, versionLineIndex);
@@ -52,19 +50,11 @@ export class ChangelogService implements IChangelogService {
         if (changedSectionIndex !== -1) {
             // Update existing ### Changed section
             core.info('Updating existing ### Changed section');
-            updatedLines = this.updateExistingChangedSection(
-                lines,
-                changedSectionIndex,
-                formattedChanges,
-            );
+            updatedLines = this.updateExistingChangedSection(lines, changedSectionIndex, formattedChanges);
         } else {
             // Create new ### Changed section
             core.info('Creating new ### Changed section');
-            updatedLines = this.insertNewChangedSection(
-                lines,
-                versionLineIndex,
-                formattedChanges,
-            );
+            updatedLines = this.insertNewChangedSection(lines, versionLineIndex, formattedChanges);
         }
 
         // Write updated content back
@@ -224,11 +214,7 @@ export class ChangelogService implements IChangelogService {
      * @param formattedChanges - Formatted changes to add
      * @returns Updated lines
      */
-    private insertNewChangedSection(
-        lines: string[],
-        versionLineIndex: number,
-        formattedChanges: string,
-    ): string[] {
+    private insertNewChangedSection(lines: string[], versionLineIndex: number, formattedChanges: string): string[] {
         // Find where to insert the new section
         let insertIndex = versionLineIndex + 1;
 

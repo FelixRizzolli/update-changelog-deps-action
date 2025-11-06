@@ -56,7 +56,7 @@ describe('run', () => {
 
         expect(mockSetOutput).toHaveBeenCalledWith('changes-detected', false);
         expect(mockSetOutput).toHaveBeenCalledWith('changelog-updated', false);
-        expect((mockFs.writeFile as Mock)).not.toHaveBeenCalled();
+        expect(mockFs.writeFile as Mock).not.toHaveBeenCalled();
     });
 
     it('runs happy path and updates changelog', async () => {
@@ -69,8 +69,7 @@ describe('run', () => {
             fileExists: vi.fn().mockReturnValue(true),
             readFile: vi.fn().mockImplementation((path: string) => {
                 if (path === 'package.json') return JSON.stringify(newPackageJsonObj);
-                if (path === 'CHANGELOG.md')
-                    return '# Changelog\n\n## [Unreleased]\n\n### Added\n- something';
+                if (path === 'CHANGELOG.md') return '# Changelog\n\n## [Unreleased]\n\n### Added\n- something';
                 return '';
             }),
             writeFile: vi.fn(),
@@ -84,7 +83,7 @@ describe('run', () => {
 
         await run(mockFs, mockGit);
 
-        expect((mockFs.writeFile as Mock)).toHaveBeenCalled();
+        expect(mockFs.writeFile as Mock).toHaveBeenCalled();
         expect(mockSetOutput).toHaveBeenCalledWith('changes-detected', true);
         expect(mockSetOutput).toHaveBeenCalledWith('changelog-updated', true);
     });
@@ -114,7 +113,7 @@ describe('run', () => {
 
         expect(mockSetOutput).toHaveBeenCalledWith('changes-detected', false);
         expect(mockSetOutput).toHaveBeenCalledWith('changelog-updated', false);
-        expect((mockFs.writeFile as Mock)).not.toHaveBeenCalled();
+        expect(mockFs.writeFile as Mock).not.toHaveBeenCalled();
     });
 
     it('handles non-Error exceptions thrown from inputs', async () => {
@@ -137,7 +136,7 @@ describe('run', () => {
 
         await run(mockFs, mockGit);
 
-        expect((core.setFailed as Mock)).toHaveBeenCalledWith('String error');
+        expect(core.setFailed as Mock).toHaveBeenCalledWith('String error');
     });
 
     it('handles Error exceptions from git service', async () => {
@@ -157,7 +156,7 @@ describe('run', () => {
 
         await run(mockFs, mockGit);
 
-        expect((core.setFailed as Mock)).toHaveBeenCalledWith('No tags found');
+        expect(core.setFailed as Mock).toHaveBeenCalledWith('No tags found');
     });
 });
 

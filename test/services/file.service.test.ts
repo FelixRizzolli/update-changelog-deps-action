@@ -55,7 +55,7 @@ describe('FileService', () => {
             });
 
             expect(() => fileService.readFile('/nonexistent/file.txt')).toThrow(
-                'Failed to read file /nonexistent/file.txt'
+                'Failed to read file /nonexistent/file.txt',
             );
         });
 
@@ -119,7 +119,7 @@ describe('FileService', () => {
 
             expect(result).toBe(false);
             expect(mockWarning).toHaveBeenCalledWith(
-                expect.stringContaining('Error checking file existence for /protected/file.txt')
+                expect.stringContaining('Error checking file existence for /protected/file.txt'),
             );
         });
 
@@ -164,7 +164,7 @@ describe('FileService', () => {
             });
 
             expect(() => fileService.writeFile('/protected/file.txt', 'content')).toThrow(
-                'Failed to write file /protected/file.txt'
+                'Failed to write file /protected/file.txt',
             );
         });
 

@@ -22,7 +22,6 @@ jobs:
           fetch-depth: 0
 
       - name: Update CHANGELOG
-        # Use the action defined in this repository (action.yml at repo root)
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}

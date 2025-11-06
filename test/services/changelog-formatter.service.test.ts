@@ -55,9 +55,7 @@ describe('ChangelogFormatterService', () => {
 
             const result = service.format(changes);
 
-            expect(result).toBe(
-                '- added dependencies\n' + '    - express@^4.18.0\n' + '    - lodash@^4.17.21',
-            );
+            expect(result).toBe('- added dependencies\n' + '    - express@^4.18.0\n' + '    - lodash@^4.17.21');
         });
 
         it('should format removed dependencies', () => {

@@ -48,15 +48,9 @@ export class DefaultChangelogFormatter implements IChangelogFormatter {
      * @param sectionName - Name of the section (e.g., 'dependencies')
      * @param sectionChanges - Changes in this section
      */
-    private formatSection(
-        output: string[],
-        sectionName: string,
-        sectionChanges: DependencyChanges,
-    ): void {
+    private formatSection(output: string[], sectionName: string, sectionChanges: DependencyChanges): void {
         const hasChanges =
-            sectionChanges.added.length > 0 ||
-            sectionChanges.removed.length > 0 ||
-            sectionChanges.updated.length > 0;
+            sectionChanges.added.length > 0 || sectionChanges.removed.length > 0 || sectionChanges.updated.length > 0;
 
         if (!hasChanges) {
             return;

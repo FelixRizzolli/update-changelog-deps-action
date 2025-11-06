@@ -27,11 +27,7 @@ describe('GitService', () => {
     describe('getLastTag', () => {
         it('should return the last tag when tags exist', async () => {
             mockExec.mockImplementation(
-                async (
-                    _commandLine: string,
-                    _args?: string[],
-                    options?: ExecOptions,
-                ): Promise<number> => {
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
                     if (options?.listeners?.stdout) {
                         options.listeners.stdout(Buffer.from('v1.2.3\n'));
                     }
@@ -54,12 +50,14 @@ describe('GitService', () => {
         });
 
         it('should return null when no tags exist', async () => {
-            mockExec.mockImplementation(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stderr) {
-                    options.listeners.stderr(Buffer.from('fatal: No names found\n'));
-                }
-                return 128;
-            });
+            mockExec.mockImplementation(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stderr) {
+                        options.listeners.stderr(Buffer.from('fatal: No names found\n'));
+                    }
+                    return 128;
+                },
+            );
 
             const result = await service.getLastTag();
 
@@ -68,12 +66,14 @@ describe('GitService', () => {
         });
 
         it('should handle tags with different formats', async () => {
-            mockExec.mockImplementation(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from('2.0.0-beta.1\n'));
-                }
-                return 0;
-            });
+            mockExec.mockImplementation(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from('2.0.0-beta.1\n'));
+                    }
+                    return 0;
+                },
+            );
 
             const result = await service.getLastTag();
 
@@ -81,12 +81,14 @@ describe('GitService', () => {
         });
 
         it('should trim whitespace from tag output', async () => {
-            mockExec.mockImplementation(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from('  v1.0.0  \n'));
-                }
-                return 0;
-            });
+            mockExec.mockImplementation(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from('  v1.0.0  \n'));
+                    }
+                    return 0;
+                },
+            );
 
             const result = await service.getLastTag();
 
@@ -94,12 +96,14 @@ describe('GitService', () => {
         });
 
         it('should return null for empty tag output', async () => {
-            mockExec.mockImplementation(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from(''));
-                }
-                return 0;
-            });
+            mockExec.mockImplementation(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from(''));
+                    }
+                    return 0;
+                },
+            );
 
             const result = await service.getLastTag();
 
@@ -110,12 +114,14 @@ describe('GitService', () => {
     describe('getFileFromTag', () => {
         it('should return file content from a tag', async () => {
             const fileContent = '{"name":"test","version":"1.0.0"}';
-            mockExec.mockImplementation(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from(fileContent));
-                }
-                return 0;
-            });
+            mockExec.mockImplementation(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from(fileContent));
+                    }
+                    return 0;
+                },
+            );
 
             const result = await service.getFileFromTag('v1.0.0', 'package.json');
 
@@ -131,12 +137,14 @@ describe('GitService', () => {
         });
 
         it('should return null when file does not exist in tag', async () => {
-            mockExec.mockImplementation(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stderr) {
-                    options.listeners.stderr(Buffer.from('fatal: path not found\n'));
-                }
-                return 128;
-            });
+            mockExec.mockImplementation(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stderr) {
+                        options.listeners.stderr(Buffer.from('fatal: path not found\n'));
+                    }
+                    return 128;
+                },
+            );
 
             const result = await service.getFileFromTag('v1.0.0', 'missing.json');
 
@@ -146,12 +154,14 @@ describe('GitService', () => {
 
         it('should handle files in subdirectories', async () => {
             const fileContent = 'file content';
-            mockExec.mockImplementation(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from(fileContent));
-                }
-                return 0;
-            });
+            mockExec.mockImplementation(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from(fileContent));
+                    }
+                    return 0;
+                },
+            );
 
             const result = await service.getFileFromTag('v2.0.0', 'src/config/settings.json');
 
@@ -165,14 +175,16 @@ describe('GitService', () => {
 
         it('should handle large file content', async () => {
             const largeContent = 'x'.repeat(10000);
-            mockExec.mockImplementation(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    // Simulate chunked output
-                    options.listeners.stdout(Buffer.from(largeContent.slice(0, 5000)));
-                    options.listeners.stdout(Buffer.from(largeContent.slice(5000)));
-                }
-                return 0;
-            });
+            mockExec.mockImplementation(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        // Simulate chunked output
+                        options.listeners.stdout(Buffer.from(largeContent.slice(0, 5000)));
+                        options.listeners.stdout(Buffer.from(largeContent.slice(5000)));
+                    }
+                    return 0;
+                },
+            );
 
             const result = await service.getFileFromTag('v1.0.0', 'large-file.json');
 
@@ -191,20 +203,24 @@ describe('GitService', () => {
             };
 
             // Mock getLastTag
-            mockExec.mockImplementationOnce(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from('v1.0.0\n'));
-                }
-                return 0;
-            });
+            mockExec.mockImplementationOnce(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from('v1.0.0\n'));
+                    }
+                    return 0;
+                },
+            );
 
             // Mock getFileFromTag
-            mockExec.mockImplementationOnce(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from(JSON.stringify(packageJson)));
-                }
-                return 0;
-            });
+            mockExec.mockImplementationOnce(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from(JSON.stringify(packageJson)));
+                    }
+                    return 0;
+                },
+            );
 
             const result = await service.getPackageJsonFromLastTag('package.json');
 
@@ -214,12 +230,14 @@ describe('GitService', () => {
         });
 
         it('should return null when no tags exist', async () => {
-            mockExec.mockImplementation(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stderr) {
-                    options.listeners.stderr(Buffer.from('fatal: No names found\n'));
-                }
-                return 128;
-            });
+            mockExec.mockImplementation(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stderr) {
+                        options.listeners.stderr(Buffer.from('fatal: No names found\n'));
+                    }
+                    return 128;
+                },
+            );
 
             const result = await service.getPackageJsonFromLastTag('package.json');
 
@@ -229,45 +247,51 @@ describe('GitService', () => {
 
         it('should return null when package.json does not exist in tag', async () => {
             // Mock getLastTag
-            mockExec.mockImplementationOnce(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from('v1.0.0\n'));
-                }
-                return 0;
-            });
+            mockExec.mockImplementationOnce(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from('v1.0.0\n'));
+                    }
+                    return 0;
+                },
+            );
 
             // Mock getFileFromTag - file not found
-            mockExec.mockImplementationOnce(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stderr) {
-                    options.listeners.stderr(Buffer.from('fatal: path not found\n'));
-                }
-                return 128;
-            });
+            mockExec.mockImplementationOnce(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stderr) {
+                        options.listeners.stderr(Buffer.from('fatal: path not found\n'));
+                    }
+                    return 128;
+                },
+            );
 
             const result = await service.getPackageJsonFromLastTag('package.json');
 
             expect(result).toBe(null);
-            expect(mockWarning).toHaveBeenCalledWith(
-                'No package.json found in tag v1.0.0 at package.json',
-            );
+            expect(mockWarning).toHaveBeenCalledWith('No package.json found in tag v1.0.0 at package.json');
         });
 
         it('should throw error for invalid JSON', async () => {
             // Mock getLastTag
-            mockExec.mockImplementationOnce(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from('v1.0.0\n'));
-                }
-                return 0;
-            });
+            mockExec.mockImplementationOnce(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from('v1.0.0\n'));
+                    }
+                    return 0;
+                },
+            );
 
             // Mock getFileFromTag with invalid JSON
-            mockExec.mockImplementationOnce(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from('{ invalid json }'));
-                }
-                return 0;
-            });
+            mockExec.mockImplementationOnce(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from('{ invalid json }'));
+                    }
+                    return 0;
+                },
+            );
 
             await expect(service.getPackageJsonFromLastTag('package.json')).rejects.toThrow(
                 'Failed to parse package.json from tag v1.0.0',
@@ -276,25 +300,31 @@ describe('GitService', () => {
 
         it('should include non-Error message when JSON.parse throws non-Error', async () => {
             // Mock getLastTag
-            mockExec.mockImplementationOnce(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from('v1.0.0\n'));
-                }
-                return 0;
-            });
+            mockExec.mockImplementationOnce(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from('v1.0.0\n'));
+                    }
+                    return 0;
+                },
+            );
 
             // Mock getFileFromTag to return something
-            mockExec.mockImplementationOnce(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from('whatever'));
-                }
-                return 0;
-            });
+            mockExec.mockImplementationOnce(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from('whatever'));
+                    }
+                    return 0;
+                },
+            );
 
             // Temporarily stub JSON.parse to throw a non-Error value
             const originalParse = JSON.parse;
             // @ts-ignore - intentionally throwing non-Error
-            JSON.parse = () => { throw 'not-an-error'; };
+            JSON.parse = () => {
+                throw 'not-an-error';
+            };
 
             await expect(service.getPackageJsonFromLastTag('package.json')).rejects.toThrow(
                 'Failed to parse package.json from tag v1.0.0: not-an-error',
@@ -308,20 +338,24 @@ describe('GitService', () => {
             const packageJson = { name: 'custom-package', version: '2.0.0' };
 
             // Mock getLastTag
-            mockExec.mockImplementationOnce(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from('v2.0.0\n'));
-                }
-                return 0;
-            });
+            mockExec.mockImplementationOnce(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from('v2.0.0\n'));
+                    }
+                    return 0;
+                },
+            );
 
             // Mock getFileFromTag
-            mockExec.mockImplementationOnce(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from(JSON.stringify(packageJson)));
-                }
-                return 0;
-            });
+            mockExec.mockImplementationOnce(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from(JSON.stringify(packageJson)));
+                    }
+                    return 0;
+                },
+            );
 
             const result = await service.getPackageJsonFromLastTag('custom/path/package.json');
 
@@ -354,20 +388,24 @@ describe('GitService', () => {
             };
 
             // Mock getLastTag
-            mockExec.mockImplementationOnce(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from('v1.0.0\n'));
-                }
-                return 0;
-            });
+            mockExec.mockImplementationOnce(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from('v1.0.0\n'));
+                    }
+                    return 0;
+                },
+            );
 
             // Mock getFileFromTag
-            mockExec.mockImplementationOnce(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
-                if (options?.listeners?.stdout) {
-                    options.listeners.stdout(Buffer.from(JSON.stringify(packageJson)));
-                }
-                return 0;
-            });
+            mockExec.mockImplementationOnce(
+                async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                    if (options?.listeners?.stdout) {
+                        options.listeners.stdout(Buffer.from(JSON.stringify(packageJson)));
+                    }
+                    return 0;
+                },
+            );
 
             const result = await service.getPackageJsonFromLastTag('package.json');
 

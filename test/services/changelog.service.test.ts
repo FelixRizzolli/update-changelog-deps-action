@@ -42,7 +42,7 @@ describe('ChangelogService', () => {
 
 ## [1.0.0] - 2025-11-06
             `;
-            
+
             mockReadFile.mockReturnValue(changelog);
 
             expect(() => {
@@ -77,10 +77,7 @@ Just some text
 
             service.updateChangelog('CHANGELOG.md', changes, '1.0.0');
 
-            expect(mockWriteFile).toHaveBeenCalledWith(
-                'CHANGELOG.md',
-                expect.stringContaining('### Changed'),
-            );
+            expect(mockWriteFile).toHaveBeenCalledWith('CHANGELOG.md', expect.stringContaining('### Changed'));
             expect(mockWriteFile).toHaveBeenCalledWith(
                 'CHANGELOG.md',
                 expect.stringContaining('- updated dependencies'),

@@ -72,14 +72,8 @@ export class DependencyComparerService implements IDependencyComparerService {
      */
     compare(oldPackageJson: PackageJson, newPackageJson: PackageJson): PackageChanges {
         return {
-            dependencies: this.compareDependencies(
-                oldPackageJson.dependencies,
-                newPackageJson.dependencies,
-            ),
-            devDependencies: this.compareDependencies(
-                oldPackageJson.devDependencies,
-                newPackageJson.devDependencies,
-            ),
+            dependencies: this.compareDependencies(oldPackageJson.dependencies, newPackageJson.dependencies),
+            devDependencies: this.compareDependencies(oldPackageJson.devDependencies, newPackageJson.devDependencies),
             peerDependencies: this.compareDependencies(
                 oldPackageJson.peerDependencies,
                 newPackageJson.peerDependencies,
@@ -97,17 +91,11 @@ export class DependencyComparerService implements IDependencyComparerService {
      * @param newDeps - New dependencies object
      * @returns Changes object with added, removed, and updated arrays
      */
-    private compareDependencies(
-        oldDeps?: Record<string, string>,
-        newDeps?: Record<string, string>,
-    ): DependencyChanges {
+    private compareDependencies(oldDeps?: Record<string, string>, newDeps?: Record<string, string>): DependencyChanges {
         const oldDependencies = oldDeps || {};
         const newDependencies = newDeps || {};
 
-        const allKeys = new Set([
-            ...Object.keys(oldDependencies),
-            ...Object.keys(newDependencies),
-        ]);
+        const allKeys = new Set([...Object.keys(oldDependencies), ...Object.keys(newDependencies)]);
 
         const changes: DependencyChanges = {
             added: [],
@@ -162,10 +150,6 @@ export class DependencyComparerService implements IDependencyComparerService {
      * @returns True if there are any changes, false otherwise
      */
     private hasSectionChanges(changes: DependencyChanges): boolean {
-        return (
-            changes.added.length > 0 ||
-            changes.removed.length > 0 ||
-            changes.updated.length > 0
-        );
+        return changes.added.length > 0 || changes.removed.length > 0 || changes.updated.length > 0;
     }
 }

@@ -12,7 +12,7 @@
     "scripts": {
         "build": "tsc && ncc build lib/index.js -o dist --source-map --license licenses.txt",
         "type-check": "tsc --noEmit",
-        "format": "oxfmt src",
+        "format": "oxfmt .",
         "format:check": "oxfmt --check src",
         "lint": "oxlint src",
         "test": "vitest run",

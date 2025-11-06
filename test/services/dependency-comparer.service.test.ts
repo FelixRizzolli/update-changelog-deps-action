@@ -1,9 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-    DependencyComparerService,
-    PackageJson,
-    PackageChanges,
-} from '../../src/services/dependency-comparer.service';
+import { DependencyComparerService, PackageJson, PackageChanges } from '../../src/services/dependency-comparer.service';
 
 describe('DependencyComparerService', () => {
     let service: DependencyComparerService;

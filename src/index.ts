@@ -9,10 +9,7 @@ import { PackageJson } from './services/dependency-comparer.service';
 /**
  * Main entry point for the action
  */
-export async function run(
-    fileService?: IFileService,
-    gitService?: IGitService,
-): Promise<void> {
+export async function run(fileService?: IFileService, gitService?: IGitService): Promise<void> {
     try {
         // Get inputs (also validates token)
         const { packageJsonPath, changelogPath } = getPathsFromInputs();
@@ -21,13 +18,10 @@ export async function run(
         core.info(`Using CHANGELOG.md path: ${changelogPath}`);
 
         // Initialize services
-        const {
-            fs,
-            git,
-            dependencyComparer,
-            changelogFormatter,
-            changelogService,
-        } = initServices(fileService, gitService);
+        const { fs, git, dependencyComparer, changelogFormatter, changelogService } = initServices(
+            fileService,
+            gitService,
+        );
 
         // Validate inputs
         validateFiles(fs, packageJsonPath, changelogPath);
@@ -88,10 +82,7 @@ export function getPathsFromInputs(): { packageJsonPath: string; changelogPath: 
     return { packageJsonPath, changelogPath };
 }
 
-export function initServices(
-    fileService?: IFileService,
-    gitService?: IGitService,
-) {
+export function initServices(fileService?: IFileService, gitService?: IGitService) {
     const fs = fileService || new FileService();
     const git = gitService || new GitService();
     const dependencyComparer = new DependencyComparerService();
