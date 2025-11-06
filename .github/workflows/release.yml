@@ -28,6 +28,40 @@ jobs:
           package-json-path: 'package.json'
           changelog-path: 'CHANGELOG.md'
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+            node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build action
+        run: pnpm build
+
+      - name: Commit built dist
+        run: |
+          # Configure git user for the commit
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Stage only the dist folder (if it exists)
+          if [ -d "dist" ]; then
+            git add -A dist
+          fi
+
+          # If there are staged changes, commit and push back to the current branch
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(release): build dist [skip ci]"
+            # Push to the current branch name (GITHUB_REF_NAME is set by the runner)
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
+
       - name: Run auto release
         uses: FelixRizzolli/auto-release-action@v1
         with:
