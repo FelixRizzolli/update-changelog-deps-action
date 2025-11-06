@@ -1,0 +1,25 @@
+name: 'Auto Update Changelog Deps Action'
+description: 'Automatically updates or adds the changed dependencies in the CHANGELOG.md file.'
+author: 'Felix Rizzolli'
+
+inputs:
+    github-token:
+        description: 'GitHub token for authentication (needs contents: write permission)'
+        required: true
+        default: ${{ github.token }}
+
+    package-json-path:
+        description: 'Path to package.json file (relative to repository root)'
+        required: false
+        default: 'package.json'
+
+    changelog-path:
+        description: 'Path to CHANGELOG.md file (relative to repository root)'
+        required: false
+        default: 'CHANGELOG.md'
+
+outputs:
+
+runs:
+    using: 'node24'
+    main: 'dist/index.js'
