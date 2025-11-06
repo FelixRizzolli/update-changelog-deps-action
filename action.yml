@@ -18,6 +18,11 @@ inputs:
         required: false
         default: 'CHANGELOG.md'
 
+    commit-message:
+        description: 'Custom commit message for the changelog update'
+        required: false
+        default: 'chore: update CHANGELOG.md with dependency changes'
+
 outputs:
     changes-detected:
         description: 'Whether any dependency changes were detected'

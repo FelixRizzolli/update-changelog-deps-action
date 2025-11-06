@@ -4,11 +4,13 @@ import { run } from '../src/index';
 
 import {
     getPathsFromInputs,
+    getCommitMessage,
     initServices,
     validateFiles,
     fetchOldPackageJson,
     readCurrentPackageJson,
     formatAndUpdateChangelog,
+    commitAndPushChanges,
 } from '../src/index';
 
 import { IFileService } from '../src/services/file.service';
@@ -17,6 +19,19 @@ import { ChangelogFormatterService } from '../src/services/changelog-formatter.s
 import { ChangelogService } from '../src/services/changelog.service';
 
 vi.mock('@actions/core');
+
+function createMockGitService(overrides?: Partial<IGitService>): IGitService {
+    return {
+        getLastTag: vi.fn(),
+        getFileFromTag: vi.fn(),
+        getPackageJsonFromLastTag: vi.fn(),
+        configureGit: vi.fn(),
+        stageFile: vi.fn(),
+        commit: vi.fn(),
+        push: vi.fn(),
+        ...overrides,
+    };
+}
 
 describe('run', () => {
     let mockGetInput: Mock;
@@ -46,11 +61,7 @@ describe('run', () => {
             writeFile: vi.fn(),
         };
 
-        const mockGit: IGitService = {
-            getLastTag: vi.fn(),
-            getFileFromTag: vi.fn(),
-            getPackageJsonFromLastTag: vi.fn().mockResolvedValue(undefined),
-        };
+        const mockGit = createMockGitService({ getPackageJsonFromLastTag: vi.fn().mockResolvedValue(undefined) });
 
         await run(mockFs, mockGit);
 
@@ -75,11 +86,7 @@ describe('run', () => {
             writeFile: vi.fn(),
         };
 
-        const mockGit: IGitService = {
-            getLastTag: vi.fn(),
-            getFileFromTag: vi.fn(),
-            getPackageJsonFromLastTag: vi.fn().mockResolvedValue(oldPackageJsonObj),
-        };
+        const mockGit = createMockGitService({ getPackageJsonFromLastTag: vi.fn().mockResolvedValue(oldPackageJsonObj) });
 
         await run(mockFs, mockGit);
 
@@ -103,11 +110,7 @@ describe('run', () => {
             writeFile: vi.fn(),
         };
 
-        const mockGit: IGitService = {
-            getLastTag: vi.fn(),
-            getFileFromTag: vi.fn(),
-            getPackageJsonFromLastTag: vi.fn().mockResolvedValue(pkg),
-        };
+        const mockGit = createMockGitService({ getPackageJsonFromLastTag: vi.fn().mockResolvedValue(pkg) });
 
         await run(mockFs, mockGit);
 
@@ -128,11 +131,7 @@ describe('run', () => {
             writeFile: vi.fn(),
         };
 
-        const mockGit: IGitService = {
-            getLastTag: vi.fn(),
-            getFileFromTag: vi.fn(),
-            getPackageJsonFromLastTag: vi.fn(),
-        };
+        const mockGit = createMockGitService();
 
         await run(mockFs, mockGit);
 
@@ -148,11 +147,7 @@ describe('run', () => {
             writeFile: vi.fn(),
         };
 
-        const mockGit: IGitService = {
-            getLastTag: vi.fn(),
-            getFileFromTag: vi.fn(),
-            getPackageJsonFromLastTag: vi.fn().mockRejectedValue(new Error('No tags found')),
-        };
+        const mockGit = createMockGitService({ getPackageJsonFromLastTag: vi.fn().mockRejectedValue(new Error('No tags found')) });
 
         await run(mockFs, mockGit);
 
@@ -202,11 +197,7 @@ describe('index helpers', () => {
                 writeFile: vi.fn(),
             };
 
-            const mockGit: IGitService = {
-                getLastTag: vi.fn(),
-                getFileFromTag: vi.fn(),
-                getPackageJsonFromLastTag: vi.fn(),
-            };
+            const mockGit = createMockGitService();
 
             const res = initServices(mockFs, mockGit);
             expect(res.fs).toBe(mockFs);
@@ -255,11 +246,7 @@ describe('index helpers', () => {
 
     describe('fetchOldPackageJson', () => {
         it('returns value from git service', async () => {
-            const mockGit: IGitService = {
-                getLastTag: vi.fn(),
-                getFileFromTag: vi.fn(),
-                getPackageJsonFromLastTag: vi.fn().mockResolvedValue({ foo: 'bar' }),
-            };
+            const mockGit = createMockGitService({ getPackageJsonFromLastTag: vi.fn().mockResolvedValue({ foo: 'bar' }) });
 
             const res = await fetchOldPackageJson(mockGit, 'package.json');
             expect(res).toEqual({ foo: 'bar' });
@@ -358,11 +345,7 @@ describe('index helpers', () => {
                 writeFile: vi.fn(),
             };
 
-            const mockGit: IGitService = {
-                getLastTag: vi.fn(),
-                getFileFromTag: vi.fn(),
-                getPackageJsonFromLastTag: vi.fn(),
-            };
+            const mockGit = createMockGitService();
 
             const res = initServices(mockFs, mockGit);
             expect(res.fs).toBe(mockFs);
@@ -411,11 +394,7 @@ describe('index helpers', () => {
 
     describe('fetchOldPackageJson', () => {
         it('returns value from git service', async () => {
-            const mockGit: IGitService = {
-                getLastTag: vi.fn(),
-                getFileFromTag: vi.fn(),
-                getPackageJsonFromLastTag: vi.fn().mockResolvedValue({ foo: 'bar' }),
-            };
+            const mockGit = createMockGitService({ getPackageJsonFromLastTag: vi.fn().mockResolvedValue({ foo: 'bar' }) });
 
             const res = await fetchOldPackageJson(mockGit, 'package.json');
             expect(res).toEqual({ foo: 'bar' });
@@ -471,3 +450,37 @@ describe('index helpers', () => {
         });
     });
 });
+
+    describe('getCommitMessage', () => {
+        it('returns default message when not provided', () => {
+            const mockGetInput = vi.fn((name: string) => '');
+            (core.getInput as Mock) = mockGetInput;
+
+            const message = getCommitMessage();
+            expect(message).toBe('chore: update CHANGELOG.md with dependency changes');
+        });
+
+        it('returns custom message when provided', () => {
+            const mockGetInput = vi.fn((name: string) => {
+                if (name === 'commit-message') return 'custom commit message';
+                return '';
+            });
+            (core.getInput as Mock) = mockGetInput;
+
+            const message = getCommitMessage();
+            expect(message).toBe('custom commit message');
+        });
+    });
+
+    describe('commitAndPushChanges', () => {
+        it('configures git, stages, commits, and pushes changes', async () => {
+            const mockGit = createMockGitService();
+
+            await commitAndPushChanges(mockGit, 'CHANGELOG.md', 'test commit message');
+
+            expect(mockGit.configureGit).toHaveBeenCalledWith('github-actions[bot]', 'github-actions[bot]@users.noreply.github.com');
+            expect(mockGit.stageFile).toHaveBeenCalledWith('CHANGELOG.md');
+            expect(mockGit.commit).toHaveBeenCalledWith('test commit message');
+            expect(mockGit.push).toHaveBeenCalled();
+        });
+    });

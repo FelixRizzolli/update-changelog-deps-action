@@ -412,4 +412,49 @@ describe('GitService', () => {
             expect(result).toEqual(packageJson);
         });
     });
+
+    describe('configureGit', () => {
+        it('should configure git user name and email', async () => {
+            mockExec.mockResolvedValue(0);
+
+            await service.configureGit('Test User', 'test@example.com');
+
+            expect(mockExec).toHaveBeenCalledWith('git', ['config', 'user.name', 'Test User'], { silent: true });
+            expect(mockExec).toHaveBeenCalledWith('git', ['config', 'user.email', 'test@example.com'], { silent: true });
+            expect(mockInfo).toHaveBeenCalledWith('Git user configured');
+        });
+    });
+
+    describe('stageFile', () => {
+        it('should stage a file', async () => {
+            mockExec.mockResolvedValue(0);
+
+            await service.stageFile('CHANGELOG.md');
+
+            expect(mockExec).toHaveBeenCalledWith('git', ['add', 'CHANGELOG.md'], { silent: true });
+            expect(mockInfo).toHaveBeenCalledWith('Staged file: CHANGELOG.md');
+        });
+    });
+
+    describe('commit', () => {
+        it('should commit with a message', async () => {
+            mockExec.mockResolvedValue(0);
+
+            await service.commit('chore: update changelog');
+
+            expect(mockExec).toHaveBeenCalledWith('git', ['commit', '-m', 'chore: update changelog'], { silent: true });
+            expect(mockInfo).toHaveBeenCalledWith('Changes committed');
+        });
+    });
+
+    describe('push', () => {
+        it('should push changes to remote', async () => {
+            mockExec.mockResolvedValue(0);
+
+            await service.push();
+
+            expect(mockExec).toHaveBeenCalledWith('git', ['push'], { silent: true });
+            expect(mockInfo).toHaveBeenCalledWith('Changes pushed to remote');
+        });
+    });
 });

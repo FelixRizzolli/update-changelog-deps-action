@@ -13,6 +13,7 @@ export async function run(fileService?: IFileService, gitService?: IGitService):
     try {
         // Get inputs (also validates token)
         const { packageJsonPath, changelogPath } = getPathsFromInputs();
+        const commitMessage = getCommitMessage();
 
         core.info(`Using package.json path: ${packageJsonPath}`);
         core.info(`Using CHANGELOG.md path: ${changelogPath}`);
@@ -61,6 +62,10 @@ export async function run(fileService?: IFileService, gitService?: IGitService):
         core.info('Formatting changes for CHANGELOG...');
         formatAndUpdateChangelog(changelogService, changelogFormatter, changelogPath, changes);
 
+        // Commit and push changes
+        core.info('Committing and pushing changes...');
+        await commitAndPushChanges(git, changelogPath, commitMessage);
+
         // Set outputs
         core.setOutput('changes-detected', true);
         core.setOutput('changelog-updated', true);
@@ -80,6 +85,10 @@ export function getPathsFromInputs(): { packageJsonPath: string; changelogPath: 
     const packageJsonPath = core.getInput('package-json-path', { required: false }) || 'package.json';
     const changelogPath = core.getInput('changelog-path', { required: false }) || 'CHANGELOG.md';
     return { packageJsonPath, changelogPath };
+}
+
+export function getCommitMessage(): string {
+    return core.getInput('commit-message', { required: false }) || 'chore: update CHANGELOG.md with dependency changes';
 }
 
 export function initServices(fileService?: IFileService, gitService?: IGitService) {
@@ -120,6 +129,26 @@ export function formatAndUpdateChangelog(
 ) {
     const formattedChanges = changelogFormatter.format(changes);
     changelogService.updateChangelog(changelogPath, formattedChanges);
+}
+
+export async function commitAndPushChanges(
+    git: IGitService,
+    changelogPath: string,
+    commitMessage: string,
+): Promise<void> {
+    // Configure git with GitHub Actions bot credentials
+    await git.configureGit('github-actions[bot]', 'github-actions[bot]@users.noreply.github.com');
+
+    // Stage the changelog file
+    await git.stageFile(changelogPath);
+
+    // Commit the changes
+    await git.commit(commitMessage);
+
+    // Push to remote
+    await git.push();
+
+    core.info('Changes committed and pushed successfully');
 }
 
 run();
