@@ -274,6 +274,36 @@ describe('GitService', () => {
             );
         });
 
+        it('should include non-Error message when JSON.parse throws non-Error', async () => {
+            // Mock getLastTag
+            mockExec.mockImplementationOnce(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                if (options?.listeners?.stdout) {
+                    options.listeners.stdout(Buffer.from('v1.0.0\n'));
+                }
+                return 0;
+            });
+
+            // Mock getFileFromTag to return something
+            mockExec.mockImplementationOnce(async (_commandLine: string, _args?: string[], options?: ExecOptions): Promise<number> => {
+                if (options?.listeners?.stdout) {
+                    options.listeners.stdout(Buffer.from('whatever'));
+                }
+                return 0;
+            });
+
+            // Temporarily stub JSON.parse to throw a non-Error value
+            const originalParse = JSON.parse;
+            // @ts-ignore - intentionally throwing non-Error
+            JSON.parse = () => { throw 'not-an-error'; };
+
+            await expect(service.getPackageJsonFromLastTag('package.json')).rejects.toThrow(
+                'Failed to parse package.json from tag v1.0.0: not-an-error',
+            );
+
+            // Restore original
+            JSON.parse = originalParse;
+        });
+
         it('should handle custom package.json path', async () => {
             const packageJson = { name: 'custom-package', version: '2.0.0' };
 
