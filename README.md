@@ -46,6 +46,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           package-json-path: 'package.json'
           changelog-path: 'CHANGELOG.md'
+          commit-message: 'docs: update CHANGELOG with latest dependency changes'
 
       - name: Run auto release
         if: steps.update_changelog.outputs.changelog-updated == 'true'
@@ -68,6 +69,7 @@ This pattern ensures a release is created only when the changelog was actually u
 | `github-token` | Yes | `${{ github.token }}` | GitHub token used to authenticate (needs `contents: write` to push changes) |
 | `package-json-path` | No | `package.json` | Path to your `package.json` file |
 | `changelog-path` | No | `CHANGELOG.md` | Path to your changelog file |
+| `commit-message` | No | `chore: update CHANGELOG.md with dependency changes` | Custom commit message for the changelog update |
 
 ## Outputs
 
@@ -78,7 +80,9 @@ This pattern ensures a release is created only when the changelog was actually u
 
 ## Behavior & expectations
 
-- The action compares dependency versions and prepares an update to the changelog. It will commit and push the change when run with a token that has write permissions.
+- The action compares dependency versions and automatically updates your `CHANGELOG.md` file with detected changes.
+- After updating the changelog, the action commits and pushes the changes using the `github-actions[bot]` identity.
+- You can customize the commit message using the `commit-message` input parameter.
 - Use the outputs to control subsequent workflow steps (for example, conditionally creating a release).
 - When using `uses: ./` during development, ensure the compiled `dist/` is present if your action runtime expects it.
 
