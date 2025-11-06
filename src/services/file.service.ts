@@ -6,6 +6,7 @@ import * as core from '@actions/core';
  */
 export interface IFileService {
     readFile(filePath: string): string;
+    writeFile(filePath: string, content: string): void;
     fileExists(filePath: string): boolean;
 }
 
@@ -24,6 +25,20 @@ export class FileService implements IFileService {
             return fs.readFileSync(filePath, 'utf8');
         } catch (error: unknown) {
             throw new Error(`Failed to read file ${filePath}: ${String(error)}`, { cause: error });
+        }
+    }
+
+    /**
+     * Write content to a file
+     * @param filePath - Path to the file
+     * @param content - Content to write
+     * @throws Error if file cannot be written
+     */
+    writeFile(filePath: string, content: string): void {
+        try {
+            fs.writeFileSync(filePath, content, 'utf8');
+        } catch (error: unknown) {
+            throw new Error(`Failed to write file ${filePath}: ${String(error)}`, { cause: error });
         }
     }
 

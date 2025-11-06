@@ -10,12 +10,14 @@ vi.mock('@actions/core');
 describe('FileService', () => {
     let fileService: FileService;
     let mockReadFileSync: any;
+    let mockWriteFileSync: any;
     let mockExistsSync: any;
     let mockWarning: any;
 
     beforeEach(() => {
         fileService = new FileService();
         mockReadFileSync = vi.mocked(fs.readFileSync);
+        mockWriteFileSync = vi.mocked(fs.writeFileSync);
         mockExistsSync = vi.mocked(fs.existsSync);
         mockWarning = vi.mocked(core.warning);
         vi.clearAllMocks();
@@ -135,6 +137,84 @@ describe('FileService', () => {
             const result = fileService.fileExists('CHANGELOG.md');
 
             expect(result).toBe(false);
+        });
+    });
+
+    describe('writeFile', () => {
+        it('should write file content successfully', () => {
+            const content = '{"name":"test","version":"2.0.0"}';
+
+            fileService.writeFile('/path/to/package.json', content);
+
+            expect(mockWriteFileSync).toHaveBeenCalledWith('/path/to/package.json', content, 'utf8');
+        });
+
+        it('should write changelog content', () => {
+            const changelogContent = '# Changelog\n\n## [2.0.0] - 2025-11-06\n- Updated dependencies';
+
+            fileService.writeFile('CHANGELOG.md', changelogContent);
+
+            expect(mockWriteFileSync).toHaveBeenCalledWith('CHANGELOG.md', changelogContent, 'utf8');
+        });
+
+        it('should throw error when file cannot be written', () => {
+            const error = new Error('EACCES: permission denied');
+            mockWriteFileSync.mockImplementation(() => {
+                throw error;
+            });
+
+            expect(() => fileService.writeFile('/protected/file.txt', 'content')).toThrow(
+                'Failed to write file /protected/file.txt'
+            );
+        });
+
+        it('should include original error in cause', () => {
+            const originalError = new Error('Disk full');
+            mockWriteFileSync.mockImplementationOnce(() => {
+                throw originalError;
+            });
+
+            try {
+                fileService.writeFile('/path/to/file.txt', 'content');
+                expect.fail('Should have thrown an error');
+            } catch (error: any) {
+                expect(error.cause).toBe(originalError);
+            }
+        });
+
+        it('should handle empty content', () => {
+            mockWriteFileSync.mockReturnValue(undefined);
+
+            fileService.writeFile('empty.txt', '');
+
+            expect(mockWriteFileSync).toHaveBeenCalledWith('empty.txt', '', 'utf8');
+        });
+
+        it('should handle content with special characters', () => {
+            mockWriteFileSync.mockReturnValue(undefined);
+            const content = 'Content with special chars: äöü € 日本語';
+
+            fileService.writeFile('special.txt', content);
+
+            expect(mockWriteFileSync).toHaveBeenCalledWith('special.txt', content, 'utf8');
+        });
+
+        it('should handle multi-line content', () => {
+            mockWriteFileSync.mockReturnValue(undefined);
+            const content = 'Line 1\nLine 2\nLine 3\n';
+
+            fileService.writeFile('multiline.txt', content);
+
+            expect(mockWriteFileSync).toHaveBeenCalledWith('multiline.txt', content, 'utf8');
+        });
+
+        it('should overwrite existing file content', () => {
+            mockWriteFileSync.mockReturnValue(undefined);
+            const newContent = 'New content replaces old';
+
+            fileService.writeFile('existing.txt', newContent);
+
+            expect(mockWriteFileSync).toHaveBeenCalledWith('existing.txt', newContent, 'utf8');
         });
     });
 });

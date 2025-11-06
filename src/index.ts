@@ -7,7 +7,7 @@ import { FileService, IFileService } from './services/file.service';
 export async function run(fileService?: IFileService): Promise<void> {
     try {
         // Get inputs
-        const githubToken = core.getInput('github-token', { required: true });
+        core.getInput('github-token', { required: true }); // Validate token is provided (will be used in later steps)
         const packageJsonPath = core.getInput('package-json-path', { required: false }) || 'package.json';
         const changelogPath = core.getInput('changelog-path', { required: false }) || 'CHANGELOG.md';
 

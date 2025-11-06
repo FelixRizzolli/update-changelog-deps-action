@@ -32,6 +32,7 @@ describe('index', () => {
         mockFileService = {
             fileExists: vi.fn(),
             readFile: vi.fn(),
+            writeFile: vi.fn(),
         };
     });
 
