@@ -1,0 +1,10 @@
+{
+    "categories": {
+        "correctness": "warn",
+        "suspicious": "warn",
+        "perf": "warn"
+    },
+    "env": {
+        "node": true
+    }
+}
