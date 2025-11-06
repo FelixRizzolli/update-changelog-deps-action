@@ -61,11 +61,13 @@ require('./sourcemap-register.js');
                 Object.defineProperty(exports, '__esModule', { value: true });
                 exports.run = run;
                 exports.getPathsFromInputs = getPathsFromInputs;
+                exports.getCommitMessage = getCommitMessage;
                 exports.initServices = initServices;
                 exports.validateFiles = validateFiles;
                 exports.fetchOldPackageJson = fetchOldPackageJson;
                 exports.readCurrentPackageJson = readCurrentPackageJson;
                 exports.formatAndUpdateChangelog = formatAndUpdateChangelog;
+                exports.commitAndPushChanges = commitAndPushChanges;
                 const core = __importStar(__nccwpck_require__(6966));
                 const file_service_1 = __nccwpck_require__(7913);
                 const git_service_1 = __nccwpck_require__(4913);
@@ -79,6 +81,7 @@ require('./sourcemap-register.js');
                     try {
                         // Get inputs (also validates token)
                         const { packageJsonPath, changelogPath } = getPathsFromInputs();
+                        const commitMessage = getCommitMessage();
                         core.info(`Using package.json path: ${packageJsonPath}`);
                         core.info(`Using CHANGELOG.md path: ${changelogPath}`);
                         // Initialize services
@@ -115,6 +118,9 @@ require('./sourcemap-register.js');
                         // Format and update CHANGELOG
                         core.info('Formatting changes for CHANGELOG...');
                         formatAndUpdateChangelog(changelogService, changelogFormatter, changelogPath, changes);
+                        // Commit and push changes
+                        core.info('Committing and pushing changes...');
+                        await commitAndPushChanges(git, changelogPath, commitMessage);
                         // Set outputs
                         core.setOutput('changes-detected', true);
                         core.setOutput('changelog-updated', true);
@@ -132,6 +138,12 @@ require('./sourcemap-register.js');
                     const packageJsonPath = core.getInput('package-json-path', { required: false }) || 'package.json';
                     const changelogPath = core.getInput('changelog-path', { required: false }) || 'CHANGELOG.md';
                     return { packageJsonPath, changelogPath };
+                }
+                function getCommitMessage() {
+                    return (
+                        core.getInput('commit-message', { required: false }) ||
+                        'chore: update CHANGELOG.md with dependency changes'
+                    );
                 }
                 function initServices(fileService, gitService) {
                     const fs = fileService || new file_service_1.FileService();
@@ -159,6 +171,17 @@ require('./sourcemap-register.js');
                 function formatAndUpdateChangelog(changelogService, changelogFormatter, changelogPath, changes) {
                     const formattedChanges = changelogFormatter.format(changes);
                     changelogService.updateChangelog(changelogPath, formattedChanges);
+                }
+                async function commitAndPushChanges(git, changelogPath, commitMessage) {
+                    // Configure git with GitHub Actions bot credentials
+                    await git.configureGit('github-actions[bot]', 'github-actions[bot]@users.noreply.github.com');
+                    // Stage the changelog file
+                    await git.stageFile(changelogPath);
+                    // Commit the changes
+                    await git.commit(commitMessage);
+                    // Push to remote
+                    await git.push();
+                    core.info('Changes committed and pushed successfully');
                 }
                 run();
 
@@ -925,6 +948,39 @@ require('./sourcemap-register.js');
                                 { cause: error },
                             );
                         }
+                    }
+                    /**
+                     * Configure git user name and email
+                     * @param name - Git user name
+                     * @param email - Git user email
+                     */
+                    async configureGit(name, email) {
+                        await exec.exec('git', ['config', 'user.name', name], { silent: true });
+                        await exec.exec('git', ['config', 'user.email', email], { silent: true });
+                        core.info('Git user configured');
+                    }
+                    /**
+                     * Stage a file for commit
+                     * @param filePath - Path to the file to stage
+                     */
+                    async stageFile(filePath) {
+                        await exec.exec('git', ['add', filePath], { silent: true });
+                        core.info(`Staged file: ${filePath}`);
+                    }
+                    /**
+                     * Commit staged changes with a message
+                     * @param message - Commit message
+                     */
+                    async commit(message) {
+                        await exec.exec('git', ['commit', '-m', message], { silent: true });
+                        core.info('Changes committed');
+                    }
+                    /**
+                     * Push commits to remote repository
+                     */
+                    async push() {
+                        await exec.exec('git', ['push'], { silent: true });
+                        core.info('Changes pushed to remote');
                     }
                 }
                 exports.GitService = GitService;
