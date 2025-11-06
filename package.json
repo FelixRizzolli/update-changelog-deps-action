@@ -1,0 +1,27 @@
+{
+  "name": "update-changelog-deps-action",
+  "version": "1.0.0",
+  "description": "GitHub Action to update CHANGELOG.md with changed dependencies.",
+  "author": {
+    "name": "Felix Rizzolli",
+    "email": "felix.rizzolli@outlook.de",
+    "url": "https://github.com/FelixRizzolli"
+  },
+  "license": "MIT",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "packageManager": "pnpm@10.18.3",
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/exec": "^1.1.1",
+    "@actions/github": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@vercel/ncc": "^0.38.4",
+    "typescript": "^5.9.3"
+  }
+}
