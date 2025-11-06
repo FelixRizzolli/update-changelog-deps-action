@@ -1,0 +1,30 @@
+{
+    "compilerOptions": {
+        // Target & Module
+        "target": "ES2022", // Modern JS for Node.js 20+
+        "module": "CommonJS", // Required for Node.js and ncc bundler
+        "lib": ["ES2022"], // Standard library for ES2022
+
+        // Output
+        "outDir": "./lib", // Compiled JS output directory
+        "rootDir": "./src", // Source directory
+
+        // Strict Type-Checking
+        "strict": true, // Enable all strict checks
+        "noUnusedLocals": true, // Error on unused local variables
+        "noUnusedParameters": true, // Error on unused function parameters
+        "noImplicitReturns": true, // Ensure all code paths return a value
+        "noFallthroughCasesInSwitch": true, // Error on switch fallthrough
+
+        // Module Resolution
+        "moduleResolution": "node", // Node.js module resolution
+        "esModuleInterop": true, // Better CommonJS/ESM interop
+        "resolveJsonModule": true, // Allow importing JSON files
+
+        // Other
+        "skipLibCheck": true, // Skip type-checking in node_modules (faster builds)
+        "forceConsistentCasingInFileNames": true // Catch case-sensitive filename errors
+    },
+    "include": ["src/**/*"],
+    "exclude": ["node_modules", "dist", "lib"]
+}
