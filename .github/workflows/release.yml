@@ -21,6 +21,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Update CHANGELOG
+        # Use the action defined in this repository (action.yml at repo root)
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          package-json-path: 'package.json'
+          changelog-path: 'CHANGELOG.md'
+
       - name: Run auto release
         uses: FelixRizzolli/auto-release-action@v1
         with:
